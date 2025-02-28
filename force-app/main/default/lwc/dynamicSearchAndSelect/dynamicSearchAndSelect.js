@@ -1,8 +1,3 @@
-/* Copyright © 2022 MaxVal Group. All Rights Reserved.
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Developed by: Aman Deep (aman.d@maxval.com)
- */
 import { LightningElement, api, track } from 'lwc';
 import getSearchRecords from '@salesforce/apex/DynamicSearchRecords.DynamicSearchRecords';
 import getMetadataAndData from '@salesforce/apex/DynamicSearchRecords.getMetadataAndData';
