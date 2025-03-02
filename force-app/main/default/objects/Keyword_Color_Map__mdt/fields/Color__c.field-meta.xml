@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Color__c</fullName>
+    <externalId>false</externalId>
+    <fieldManageability>SubscriberControlled</fieldManageability>
+    <label>Color</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>-</fullName>
+                <default>true</default>
+                <label>-</label>
+            </value>
+            <value>
+                <fullName>custom7</fullName>
+                <default>false</default>
+                <label>Blue</label>
+            </value>
+            <value>
+                <fullName>custom19</fullName>
+                <default>false</default>
+                <label>Green</label>
+            </value>
+            <value>
+                <fullName>custom23</fullName>
+                <default>false</default>
+                <label>Lavender</label>
+            </value>
+            <value>
+                <fullName>custom34</fullName>
+                <default>false</default>
+                <label>Orange</label>
+            </value>
+            <value>
+                <fullName>custom55</fullName>
+                <default>false</default>
+                <label>Pink</label>
+            </value>
+            <value>
+                <fullName>custom35</fullName>
+                <default>false</default>
+                <label>Red</label>
+            </value>
+            <value>
+                <fullName>custom16</fullName>
+                <default>false</default>
+                <label>Yellow</label>
+            </value>
+            <value>
+                <fullName>custom43</fullName>
+                <default>false</default>
+                <label>Lavender Blue Shadow</label>
+            </value>
+            <value>
+                <fullName>custom38</fullName>
+                <default>false</default>
+                <label>Blue Martini</label>
+            </value>
+            <value>
+                <fullName>custom26</fullName>
+                <default>false</default>
+                <label>Guilliman Blue</label>
+            </value>
+            <value>
+                <fullName>custom61</fullName>
+                <default>false</default>
+                <label>Georgia Peach</label>
+            </value>
+            <value>
+                <fullName>custom57</fullName>
+                <default>false</default>
+                <label>Blue Bay</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
