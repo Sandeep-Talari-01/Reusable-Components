@@ -1,10 +1,11 @@
-
 import { LightningElement, api, track } from 'lwc';
 import getSearchRecords from '@salesforce/apex/DynamicSearchRecords.DynamicSearchRecords';
 import getMetadataAndData from '@salesforce/apex/DynamicSearchRecords.getMetadataAndData';
+import ReturnSearchRecords from '@salesforce/apex/DynamicSearchRecords.ReturnSearchRecords';
+import 'c/debugUtil';
 
 export default class DynamicSearchAndSelect extends LightningElement {
-    @api minSearchTxtLen = 3;
+    @api minSearchTxtLen = 0;
     @api flowErrorMsg = 'Please Select a value'
     @api objectName;
     @api placeholder = '';
@@ -54,7 +55,6 @@ export default class DynamicSearchAndSelect extends LightningElement {
     showSortBy=false;
     noOfRecords='';
     displayText = ''; 
-    deepSearchText=''  
     sortByOptions=[]
     selectedOption='';
     copyBeforeSorting=[]
@@ -62,6 +62,11 @@ export default class DynamicSearchAndSelect extends LightningElement {
     columnData=[]
     headerLabel=''
     searchBoxPlaceHolder=''
+    replaceFieldsJson
+    validatedFields
+    selectedRecordId
+    staticRecords=[]
+    dynamicRecordsCopy
     // Dynamic dropdown options
    
     @api
@@ -117,7 +122,7 @@ export default class DynamicSearchAndSelect extends LightningElement {
     connectedCallback() { 
         this.setParentFields();
         if (this.objectName) {
-            this.fetchMetadataAndData(this.objectName);
+            // this.fetchMetadataAndData(this.objectName);
         } else {
             console.error('Object name is not defined.');
         }
@@ -188,10 +193,12 @@ export default class DynamicSearchAndSelect extends LightningElement {
             for (let i = 0; i < this.selectedRecords.length; i++) {
                 selectRecId.push(this.selectedRecords[i].recId);
             }
-
+            this.selectedRecordId = selectRecId;
             if (currentText.length >= this.minSearchTxtLen && ((this.hasEncryptedFieldSearch && currentText.length > 1) || !this.hasEncryptedFieldSearch)) {
                 this.LoadingText = true;
                 this.messageFlag = false;
+                this.fetchMetadataAndData(this.objectName);
+                console.log('object---->'+ this.objectName+ 'where condition--->:', this.whereClause);
                 getSearchRecords({ ObjectName: this.objectName, SearchFieldNameList: this.searchFieldNameList, FieldsToFetch: this.queryFieldNames, str: currentText, selectedRecId: selectRecId, additionalCond: this.whereClause, orderBy: this.orderBy, numOfRecs: this.limit, hasEncryptedFieldSearch: this.hasEncryptedFieldSearch, returnUniqueValueFor: this.returnUniqueValueFor })
                     .then(result => {
                         console.log('this.fetchedRecords:', JSON.stringify(result));
@@ -398,35 +405,32 @@ export default class DynamicSearchAndSelect extends LightningElement {
 
 // Deeper search Implementation - Start
     fetchMetadataAndData(objectName) {
-        // this.isLoading = true;
+         this.isLoading = true;
         try {
         console.log('inside fetch method--->' + objectName)
-        console.log('where clause before calling the method--->' + this.whereClause);
+        console.log('where clause before calling the method--->'+ objectName +'----'+ this.whereClause);
         getMetadataAndData({ objectName: objectName, whereClause: this.whereClause, queryFields:this.queryFieldNames})
             .then((result) => {
                 console.log('getMetadataAndData--->', result.status)    
                 if (result.status && result.columnData && result.data) {
                     this.recordsList = result.data;
+                    this.replaceFieldsJson=result.fieldMappingJson
+                    this.validatedFields=result.validatedFields
                     this.recordsList = this.recordsList.map(row => {
-                       // console.log('search resultss--->'+ this.recordsList);
                         return {
                             ...row,
                             recordLink: '/'+ row.Id,
                             Global_Record_Number__c: row.Global_Record_Number__c
                         };
                     });
-                    this.headerLabel='Select '+ this.Label;
-                    this.searchBoxPlaceHolder='Search '+ this.Label;
-                    // console.log('recordsList--->' + JSON.stringify(this.recordsList))
+                    this.headerLabel = 'Select ' + (this.Label ? this.Label : '');
+                    this.searchBoxPlaceHolder = 'Search ' + (this.Label ? this.Label : ''); 
                     this.searchResults=[... this.recordsList];
+                    this.staticRecords=[... this.recordsList];
                     this.copyBeforeSorting=[...result.data];
                     this.columnData=JSON.parse(result.columnData)
-                    // console.log ('columnData--->'+JSON.stringify(this.columnData))
                     this.options=JSON.parse(result.sortByFields)
-                    // console.log ('this.options--->'+JSON.stringify(this.options))
-                    // console.log('recordslistt-->0'+JSON.stringify(this.searchResults));
-                    // this.columnsData = result.columnData;
-                    // this.isLoading = false;
+                     this.isLoading = false;
                 } 
                 else {
                     console.log('No data or columns found in the response');
@@ -434,68 +438,59 @@ export default class DynamicSearchAndSelect extends LightningElement {
                 }
             })
             .catch((error) => {
-                // this.isLoading = false;
+                 this.isLoading = false;
                 console.error('Error fetching metadata and data:', error);
             })
                  
         } catch (error) {
-            // this.isLoading = false;
+             this.isLoading = false;
             console.error('Error fetching data:', error);
         }
     }
 
     showMoreData() {
         this.searchText=this.enteredText;
-        this.deepSearchText=this.searchText
-        this.filterRecords(this.searchText);
-        // this.fetchMetadataAndData(this.objectName);
-        this.isModalOpen = true;
+        this.searchResults= []
+        this.getDynamicData();
     }
 
-    closeModal() {
+    closeModal(event) {
+        event.stopPropagation();
         this.reset();
         this.isModalOpen = false;
     }
 
     handleSearch(event) 
     {
-    // entering
+        // entering
         let searchTerm = event.target.value;
-        this.deepSearchText=event.target.value
-        this.filterRecords(searchTerm);   
+        this.searchText = searchTerm;
+        if(this.searchText.length==0)
+            {
+                this.fetchNoOfRecords();
+            }
+            else
+            {
+                this.getDynamicData();
+                this.fetchNoOfRecords();
+            }  
   
     }
 
     handleSearchInput(event) 
     {
-    // clearing
+        // clearing
         let searchText = event.target.value;
-        this.deepSearchText=event.target.value
-        this.filterRecords(searchText);
-    }
-  
-    filterRecords(searchText) {
-        try {
-            this.isLoading = true;
-            console.log('filterRecords--->' + searchText);
-            if (searchText.length > 0) {
-                this.searchResults = this.recordsList.filter(record =>
-                    Object.values(record).some(value =>
-                        value && value.toString().toLowerCase().includes(searchText.toLowerCase()) 
-                    )
-                );
-                this.fetchNoOfRecords();
-                console.log('search results---->' + JSON.stringify(this.searchResults));
-            } else {
-                this.searchResults = this.recordsList;
-            }
-    
-            this.noOfRecords = this.searchResults.length + ' Results';
+        this.searchText = searchText;
+        if( this.searchText.length==0)
+        {
+            this.searchResults = this.staticRecords;
             this.fetchNoOfRecords();
-        } catch (exception) {
-            console.error('unable to fetch--' + exception);
-        } finally {
-            this.isLoading = false;
+        }
+        if(this.searchText.length>0)
+        {
+            this.getDynamicData();
+        
         }
     }
     
@@ -513,13 +508,12 @@ export default class DynamicSearchAndSelect extends LightningElement {
         }
     }
 
-    handleSelection(event) {
-        const selectedValue = event.target.value;
-        this.selectedOption = selectedValue;
-        console.log('Selected Option:', this.selectedOption);
+    handleFocus(event) {
+        event.preventDefault();
     }
 
     handleSelection(event) {
+        event.preventDefault();
         this.selectedOption = event.target.value;
         this.sortData(this.selectedOption);
     }
@@ -527,26 +521,32 @@ export default class DynamicSearchAndSelect extends LightningElement {
     sortData(fieldName) {
         try {
            
-            if (fieldName === 'Relevance') 
-            {
-            this.searchResults = [...this.copyBeforeSorting];
-            console.log('deepSearchText---->'+this.deepSearchText);
-            this.filterRecords(this.deepSearchText);
+            if (fieldName === 'Relevance'){
+                if(this.searchText.length>0)
+                {
+                    this.searchResults = [...this.dynamicRecordsCopy];
+                }
+                else
+                {
+                    this.searchResults = [...this.staticRecords];
+                }
             }
-            this.isLoading = true;
-            const sortedResults = [...this.searchResults].sort((a, b) => {
-            const fieldA = a[fieldName] ? a[fieldName].toString().toLowerCase() : '';
-            const fieldB = b[fieldName] ? b[fieldName].toString().toLowerCase() : '';
-            if (fieldA < fieldB) {
-                return -1;
-            } else if (fieldA > fieldB) {
-                return 1;
+            else{
+                this.isLoading = true;
+                const sortedResults = [...this.searchResults].sort((a, b) => {
+                    const fieldA = a[fieldName] ? a[fieldName].toString().toLowerCase() : '';
+                    const fieldB = b[fieldName] ? b[fieldName].toString().toLowerCase() : '';
+                    if (fieldA < fieldB) {
+                        return -1;
+                    } else if (fieldA > fieldB) {
+                        return 1;
+                    }
+                    return 0;
+                });
+                
+                this.searchResults = sortedResults; 
+                this.isLoading = false;     
             }
-            return 0;
-            });
-    
-        this.searchResults = sortedResults; 
-        this.isLoading = false;     
         } 
         catch (error) {
             this.isLoading = false;
@@ -626,11 +626,50 @@ export default class DynamicSearchAndSelect extends LightningElement {
     
             const selectedEvent = new CustomEvent('selected', { detail: this.dispatchRecords });
             this.dispatchEvent(selectedEvent);
-            this.closeModal();
+            this.isModalOpen = false;
         } 
         catch (Exception) {
             console.error('Exception in processSelectedRecord:', Exception, 'Stack:', Exception.stack);
         }
     }
     
+    handleKeyDown(event) {
+        if (event.key === 'Enter') 
+        {
+            event.preventDefault();
+        }
+    }
+    getDynamicData() {
+        ReturnSearchRecords({
+            ObjectName: this.objectName,
+            SearchFieldNameList: this.searchFieldNameList,
+            FieldsToFetch:this.validatedFields,
+            str: this.searchText,
+            selectedRecId: this.selectedRecordId,
+            additionalCond: this.whereClause,
+            orderBy: this.orderBy,
+            numOfRecs: this.limit,
+            hasEncryptedFieldSearch: this.hasEncryptedFieldSearch,
+            returnUniqueValueFor: this.returnUniqueValueFor,
+            fieldMappingJson:this.replaceFieldsJson
+            }).then((result) => {
+            if (result) {
+                this.recordsList = result
+                this.recordsList = this.recordsList.map(row => {
+                    return {
+                        ...row,
+                        recordLink: '/'+ row.Id,
+                        Global_Record_Number__c: row.Global_Record_Number__c
+                    };
+                });
+                this.searchResults = this.recordsList;
+                this.dynamicRecordsCopy=[...this.searchResults]
+                this.sortData(this.selectedOption);
+                this.fetchNoOfRecords();
+                this.isModalOpen = true;
+            }
+        }).catch((error) => {
+            console.error('Error fetching more data:', error);
+        })
+    }
 }

@@ -2,7 +2,7 @@
   @description       : 
   @author            : Sandeep Talari
   @group             : 
-  @last modified on  : 02-01-2025
+  @last modified on  : 02-28-2025
   @last modified by  : Sandeep Talari
 -->
 
@@ -127,11 +127,13 @@
                 </header>
     
                 <!-- Body -->
-                <div class="slds-modal__content slds-p-around_medium" >
+                <div class="slds-modal__content slds-p-around_medium" style="position: relative; min-height: 200px;">
                      <!-- spinner -->
-                     <div if:true={isLoading}  class="slds-is-absolute slds-align_absolute-center" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
-                        <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
-                     </div>
+                     <template if:true={isLoading}>
+                        <div class="slds-is-relative">
+                            <lightning-spinner alternative-text="Loading" size="medium" variant="brand"></lightning-spinner>
+                        </div>
+                    </template>
                     <!-- Search Box -->
                     <div class="slds-form-element slds-p-bottom_medium slds-col slds-size_1-of-4">
                         <label class="slds-form-element__label" for="search-input">
@@ -155,6 +157,8 @@
                             onfocus={handleSearch} 
                             onchange={handleSearchInput}
                             onblur={handleBlur} 
+                            onkeydown={handleKeyDown}
+                            autocomplete="off"
                             ></lightning-input>
                         </div>
                     </div>
@@ -181,7 +185,7 @@
                                                 </p>
                                                 <div  if:true={showSortBy} class="slds-m-left_small">
                                                     <label for="sortOptions" class="slds-assistive-text">Sort Options</label>
-                                                    <select id="sortOptions" class="slds-select slds-m-left_small" style="height: 20px; padding: 2px 5px; font-size: 0.70rem; margin-left: 0;" onchange={handleSelection}>
+                                                    <select id="sortOptions" class="slds-select slds-m-left_small" style="height: 20px; padding: 2px 5px; font-size: 0.70rem; margin-left: 0;"  onfocus={handleFocus} onchange={handleSelection}>
                                                         <template for:each={options} for:item="option">
                                                             <option value={option.value} key={option.value}>
                                                             {option.label}
