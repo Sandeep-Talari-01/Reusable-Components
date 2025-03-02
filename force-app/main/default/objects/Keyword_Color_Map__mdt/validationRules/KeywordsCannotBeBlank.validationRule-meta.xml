@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>KeywordsCannotBeBlank</fullName>
+    <active>true</active>
+    <errorConditionFormula>ISBLANK(Keywords__c)</errorConditionFormula>
+    <errorDisplayField>Keywords__c</errorDisplayField>
+    <errorMessage>Keywords cannot be blank</errorMessage>
+</ValidationRule>

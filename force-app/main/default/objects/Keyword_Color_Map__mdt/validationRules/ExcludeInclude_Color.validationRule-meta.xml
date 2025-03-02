@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ExcludeInclude_Color</fullName>
+    <active>true</active>
+    <description>When Exclude then Color is optional</description>
+    <errorConditionFormula>IF(
+  ISPICKVAL(Type__c, &apos;Exclude&apos;), 
+  IF(ISPICKVAL(Color__c, &apos;-&apos;), false, true), 
+  IF(
+    ISPICKVAL(Type__c, &apos;Include&apos;), 
+    IF(ISPICKVAL(Color__c, &apos;-&apos;), true, false), 
+    false
+  )
+)</errorConditionFormula>
+    <errorDisplayField>Color__c</errorDisplayField>
+    <errorMessage>Please input Valid Data.</errorMessage>
+</ValidationRule>
