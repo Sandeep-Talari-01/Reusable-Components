@@ -1,0 +1,411 @@
+/**
+ * @description       : 
+ * @author            : Sandeep Talari
+ * @group             : 
+ * @last modified on  : 03-02-2025
+ * @last modified by  : Sandeep Talari
+**/
+
+public with sharing class CommonUtility {
+    public static void collateChildFieldsOnParent(
+        List<SObject> triggerNewRecords,
+        List<SObject> triggerOldRecords,
+        String parentObjectName,
+        String childObjectName,
+        String parentLookupField,
+        String collatFieldNameOnParent,
+        List<String> directFieldsToCollatOfChild, 
+        List<String> relatedFieldsToCollatOfChild,
+        String fieldDelimiter,
+        String recordDelimiter,
+        Boolean withLabel,
+        Boolean blankFieldConsideredInOutput
+    ) {
+        String strAuditTrailLogText = '';
+        Boolean status;
+        try 
+        {
+            strAuditTrailLogText += 'triggerNewRecords: ' + triggerNewRecords + '\n'; 
+            strAuditTrailLogText += 'triggerOldRecords: ' + triggerOldRecords + '\n'; 
+            strAuditTrailLogText += 'parentObjectName: ' + parentObjectName + '\n'; 
+            strAuditTrailLogText += 'childObjectName: ' + childObjectName + '\n'; 
+            strAuditTrailLogText += 'parentLookupField: ' + parentLookupField + '\n'; 
+            strAuditTrailLogText += 'collatFieldNameOnParent: ' + collatFieldNameOnParent + '\n'; 
+            strAuditTrailLogText += 'directFieldsToCollatOfChild: ' + directFieldsToCollatOfChild + '\n'; 
+            strAuditTrailLogText += 'relatedFieldsToCollatOfChild: ' + relatedFieldsToCollatOfChild + '\n'; 
+            strAuditTrailLogText += 'fieldDelimiter: ' + fieldDelimiter + '\n'; 
+            strAuditTrailLogText += 'recordDelimiter: ' + recordDelimiter + '\n'; 
+            strAuditTrailLogText += 'withLabel: ' + withLabel + '\n'; 
+            strAuditTrailLogText += 'blankFieldConsideredInOutput: ' + blankFieldConsideredInOutput + '\n';
+
+            // Get parent IDs from both new and old records
+            Set<Id> parentIds = new Set<Id>();
+            
+            // Handle new records (insert/update)
+            if(triggerNewRecords != null) {
+                for(SObject childRecord : triggerNewRecords) 
+                {
+                    Id parentId = (Id)childRecord.get(parentLookupField);
+                    if(parentId != null) {
+                        parentIds.add(parentId);
+                    }
+                }
+            }
+            strAuditTrailLogText += 'parentIds: ' + parentIds + '\n'; 
+            // Handle old records (delete/update)
+            if(triggerOldRecords != null) {
+                for(SObject childRecord : triggerOldRecords) {
+                    Id parentId = (Id)childRecord.get(parentLookupField);
+                    if(parentId != null) {
+                        parentIds.add(parentId);
+                    }
+                    
+                }
+            } 
+            // If no parents found, exit
+            if(parentIds.isEmpty()) return;
+            
+            // Get field labels using schema describe
+            Map<String, String> directFieldToLabelMap = new Map<String, String>();
+            Map<String, String> relatedFieldToLabelMap = new Map<String, String>();
+
+            strAuditTrailLogText += 'directFieldsToCollatOfChild: ' + directFieldsToCollatOfChild + '\n';
+            strAuditTrailLogText += 'relatedFieldsToCollatOfChild: ' + relatedFieldsToCollatOfChild + '\n';
+
+            Schema.DescribeSObjectResult describeResult = 
+                Schema.getGlobalDescribe().get(childObjectName).getDescribe();
+            if (directFieldsToCollatOfChild != null) {
+                for (String fieldName : directFieldsToCollatOfChild) {
+                    Schema.SObjectField field = describeResult.fields.getMap().get(fieldName);
+                    strAuditTrailLogText += 'field: ' + field + '\n';
+                    if (field != null && withLabel) {
+                        directFieldToLabelMap.put(fieldName, field.getDescribe().getLabel());
+                        strAuditTrailLogText += 'directFieldToLabelMap: ' + directFieldToLabelMap + '\n';
+                    }
+                }
+            }
+            if(relatedFieldsToCollatOfChild!=null)
+            {
+                for(String fieldName : relatedFieldsToCollatOfChild) {
+                    strAuditTrailLogText += 'fieldName: ' + fieldName + '\n';
+                    String outputField = fieldName.replaceAll('__r\\..*', '__c');
+                    strAuditTrailLogText += 'outputField: ' + outputField + '\n';
+                    Schema.SObjectField field = describeResult.fields.getMap().get(outputField);
+                    strAuditTrailLogText += 'field: ' + field + '\n';
+                    strAuditTrailLogText += 'field.getDescribe().getLabel(): ' + field.getDescribe().getLabel() + '\n';
+                    if(fieldName != null && withLabel) {
+                        relatedFieldToLabelMap.put(fieldName, field.getDescribe().getLabel());
+                        //relatedFieldToLabelMap.put(fieldName, outputField);
+                        strAuditTrailLogText += 'relatedFieldToLabelMap: ' + relatedFieldToLabelMap + '\n';
+                    }
+                }  
+            }
+            strAuditTrailLogText += 'directFieldToLabelMap : ' + directFieldToLabelMap + '\n'; 
+            strAuditTrailLogText += 'relatedFieldToLabelMap : ' + relatedFieldToLabelMap + '\n'; 
+
+            // Prepare the dynamic query for child records
+
+            // Initialize query string
+            String childQuery = 'SELECT Id';
+
+            // Add direct fields if not null
+            if (directFieldsToCollatOfChild != null && !directFieldsToCollatOfChild.isEmpty()) {
+                childQuery += ', ' + String.join(directFieldsToCollatOfChild, ',');
+            }
+
+            // Add related fields if not null
+            if (relatedFieldsToCollatOfChild != null && !relatedFieldsToCollatOfChild.isEmpty()) {
+                childQuery += ', ' + String.join(relatedFieldsToCollatOfChild, ',');
+            }
+
+            // Add parent lookup field and the rest of the query
+            childQuery += ', ' + parentLookupField + 
+                ' FROM ' + childObjectName + 
+                ' WHERE ' + parentLookupField + 
+                ' IN :parentIds ORDER BY CreatedDate ASC';
+            strAuditTrailLogText += 'childQuery : ' + childQuery + '\n'; 
+            
+            // Query child records
+            List<SObject> childRecords = Database.query(childQuery);
+            System.debug('childRecords'+childRecords);
+            
+            strAuditTrailLogText += 'childRecords : ' + childRecords + '\n'; 
+            // Map to store parent ID to collated string
+            Map<Id, String> parentToCollatedString = new Map<Id, String>();
+            
+            // Process child records
+            for(SObject childRecord : childRecords) {
+                Id parentId = (Id)childRecord.get(parentLookupField);
+                strAuditTrailLogText += 'parentId : ' + parentId + '\n';
+                // Build collated string for this child record
+                List<String> fieldValues = new List<String>();
+                Boolean hasValidValue = false;
+
+                // Process direct fields
+                strAuditTrailLogText += 'directFieldsToCollatOfChild : ' + directFieldsToCollatOfChild + '\n';
+                if(directFieldsToCollatOfChild!=null)
+                {
+                    for(String field : directFieldsToCollatOfChild) {
+                        Object fieldValue = childRecord.get(field);
+                        String strValue;
+                        //String strValue = (fieldValue != null) ? String.valueOf(fieldValue) : '';
+                        if(fieldValue!=null)
+                        {
+                            if (fieldValue instanceof Date) {
+                                // Format Date field to MM/dd/yyyy
+                                Date dateValue = (Date) fieldValue;
+                                strValue = (dateValue.day() < 10 ? '0' : '') + dateValue.day() + '/' + 
+                                                (dateValue.month() < 10 ? '0' : '') + dateValue.month() + '/' + 
+                                                dateValue.year();
+                            } else {
+                                // Default handling for non-date fields
+                                strValue = String.valueOf(fieldValue);
+                            }
+                        }
+                        else
+                            strValue ='';
+                        strAuditTrailLogText += 'fieldValue : ' + fieldValue + '\n';
+                        strAuditTrailLogText += 'strValue : ' + strValue + '\n';
+                        
+                        if(!String.isBlank(strValue) || blankFieldConsideredInOutput) {
+                            String formattedValue;
+                            if (directFieldToLabelMap != null && directFieldToLabelMap.containsKey(field))
+                                formattedValue = directFieldToLabelMap.get(field) + ' = ' + strValue;
+                            else
+                                formattedValue = strValue;
+                            fieldValues.add(formattedValue);
+                            System.debug('formattedValue'+formattedValue);
+                            strAuditTrailLogText += 'formattedValue : ' + formattedValue + '\n';
+                            if(!String.isBlank(strValue)) hasValidValue = true;
+                        }
+                    }
+                }
+                if(relatedFieldsToCollatOfChild!=null)
+                {
+                    // Process related fields
+                    for(String relatedField : relatedFieldsToCollatOfChild) { 
+                        strAuditTrailLogText += 'relatedField : ' + relatedField + '\n';
+                        strAuditTrailLogText += 'childRecord : ' + childRecord + '\n';
+                        //Object relatedValue = childRecord.getSObject(relatedField);
+                        Object relatedValue = getFieldFromRelatedObject(childRecord, relatedField);
+                        String strValue = (relatedValue != null) ? String.valueOf(relatedValue) : '';
+                        strAuditTrailLogText += 'relatedValue : ' + relatedValue + '\n';
+                        strAuditTrailLogText += 'related - strValue : ' + strValue + '\n';
+                        
+                        if(!String.isBlank(strValue) || blankFieldConsideredInOutput) {
+                            String formattedValue;
+                            if(relatedFieldToLabelMap != null && relatedFieldToLabelMap.containsKey(relatedField))
+                                formattedValue = relatedFieldToLabelMap.get(relatedField) + ' = ' + strValue;
+                            else
+                                formattedValue = strValue;
+                            fieldValues.add(formattedValue);
+                            strAuditTrailLogText += 'formattedValue - related: ' + formattedValue + '\n';
+                            System.debug('formattedValue1'+formattedValue);
+                            if(!String.isBlank(strValue)) hasValidValue = true;
+                        }
+                    }
+                }
+                strAuditTrailLogText += 'hasValidValue: ' + hasValidValue + '\n';
+                strAuditTrailLogText += 'fieldValues: ' + fieldValues + '\n';
+                // Only process if we have valid values or blank fields are allowed
+                if(hasValidValue || blankFieldConsideredInOutput) {
+                    String collatedValue = String.join(fieldValues, fieldDelimiter);
+                    strAuditTrailLogText += 'collatedValue: ' + collatedValue + '\n';
+                    strAuditTrailLogText += 'parentToCollatedString: ' + parentToCollatedString + '\n';
+                    if(parentToCollatedString.containsKey(parentId)) {
+                        parentToCollatedString.put(
+                            parentId,
+                            parentToCollatedString.get(parentId) + recordDelimiter + collatedValue
+                        );
+                        strAuditTrailLogText += 'parentToCollatedString ---: ' + parentToCollatedString + '\n';
+                    } else {
+                        parentToCollatedString.put(parentId, collatedValue);
+                    }
+
+                    strAuditTrailLogText += '====parentToCollatedString ====: ' + parentToCollatedString + '\n';
+                }
+            }
+            
+            // Update parent records - include all affected parents even if they have no children
+            List<SObject> parentsToUpdate = new List<SObject>();
+            for(Id parentId : parentIds) {
+                SObject parentRecord = (SObject)Type.forName(parentObjectName).newInstance();
+                parentRecord.put('Id', parentId);
+                parentRecord.put(collatFieldNameOnParent, 
+                            parentToCollatedString.containsKey(parentId) ? 
+                            parentToCollatedString.get(parentId) : '');
+                parentsToUpdate.add(parentRecord);
+            }
+            strAuditTrailLogText += '====parentsToUpdate ====: ' + parentsToUpdate + '\n';
+            if(!parentsToUpdate.isEmpty()) {
+                try {
+                    //Publishes a list of platform events to the EventBus
+                    List<General_Utility__e> eventList = new List<General_Utility__e>();
+                    
+                    for(Sobject obj:parentsToUpdate)
+                    {
+                        Map<String, String> jsonMap_params = new Map<String, String>();
+
+                        jsonMap_params.put(collatFieldNameOnParent, String.valueOf(obj.get(collatFieldNameOnParent)));
+                        jsonMap_params.put('sObjectName', String.valueOf(obj.getSObjectType()));
+
+                        General_Utility__e event = new General_Utility__e(
+                            Operation_Type__c = 'Collation',
+                            Record_ID__c = String.valueOf(obj.Id),
+                            JSON_Params__c = JSON.serialize(jsonMap_params)
+                        );
+                        eventList.add(event);   
+                    }
+                                 
+                    if (!eventList.isEmpty()) {
+                        // Publish to the platform event
+                        try {
+                            system.debug('eventList-'+eventList);
+                            Database.saveResult[] sr = EventBus.publish(eventList);
+                            for(Database.saveResult s:sr){
+                            if(s.isSuccess()){
+                                system.debug('successfully published event');
+                            }
+                            else{
+                                for(Database.Error er: s.getErrors()){
+                                    system.debug('error--'+er.getStatusCode()+'--'+er.getMessage());
+                                }
+                            }}
+                        } catch (Exception e) {
+                            System.debug('Error publishing platform event: ' + e.getMessage());
+                        }
+                    }
+                    status = true;
+                    strAuditTrailLogText += 'Successful Collation Utility - > updateCollatedFields.' + '\n';
+                } catch (DmlException e) {
+                    status = false;
+                    strAuditTrailLogText += 'Error updating records: ' + e.getMessage();
+                }
+                status = true;
+                strAuditTrailLogText += 'Successful collate child fields on parent done.' + '\n';
+            } 
+        } 
+        catch (Exception e) {
+            status = false;
+            strAuditTrailLogText += 'Error in collating fields: ' + e.getMessage() + '\n';
+            strAuditTrailLogText += 'Error: ' + e.getMessage() + e.getStackTraceString() + '\n';
+        } finally {
+            HelperAudit.updateAudit('collateChildFieldsOnParent', strAuditTrailLogText, status);
+        }
+    }
+    public static Date calculateDate(Date Basedt, decimal yy, string operator,decimal count,string option, string operator1, decimal count1, string option1)
+    {
+        //system.debug('From Calculate Date---->');      
+        String AddNoofYears = String.valueOf(yy);
+        String AddNoofCount = operator+String.valueOf(count);
+        String AddNoofCount1 = operator1+String.valueOf(count1);
+        Date calculatedDate;
+        calculatedDate = Basedt.addYears(Integer.valueof(AddNoofYears.trim()));
+        //system.debug('calculatedDate added Years :'+ calculatedDate );
+        if(option == 'Month(s)')
+        {
+            calculatedDate = calculatedDate.addMonths(Integer.valueof(AddNoofCount.trim()));
+            //system.debug('calculatedDate added Months:'+ calculatedDate );
+            calculatedDate = calculatedDate.addDays(Integer.valueof(AddNoofCount1.trim()));
+            //system.debug('calculatedDate added Days:'+ calculatedDate );
+        }
+        if(option == 'Day(s)')
+        {
+            calculatedDate = calculatedDate.addDays(Integer.valueof(AddNoofCount.trim()));
+            //system.debug('calculatedDate added Days:'+ calculatedDate );
+            calculatedDate = calculatedDate.addMonths(Integer.valueof(AddNoofCount1.trim()));
+            //system.debug('calculatedDate added Months:'+ calculatedDate );
+        }
+        return calculatedDate;
+    }
+    
+    
+    public static void sleep(Integer milliSeconds)
+    {
+        Long timeDiff = 0;
+        DateTime firstTime = System.now();
+        do
+        {
+            timeDiff = System.now().getTime() - firstTime.getTime();
+        }
+        while(timeDiff <= milliSeconds);
+    }
+
+    public static EmailMessage buildEmailMessage(Messaging.SingleEmailMessage email,ID relatedToId){ 
+        Integer maxLengthPlainTextBody = EmailMessage.TextBody.getDescribe().getLength();
+        Integer maxLengthHtmlBody = EmailMessage.HtmlBody.getDescribe().getLength();
+        Integer maxLengthSubject = EmailMessage.Subject.getDescribe().getLength();        
+        String plainTextBody = ( String.isBlank( email.plainTextBody ) ? '' : email.plainTextBody.abbreviate( maxLengthPlainTextBody ) );
+        String htmlBodyFull = ( String.isBlank( email.htmlBody ) ? '' : email.htmlBody.abbreviate( maxLengthHtmlBody ) );
+        String subject = ( String.isBlank( email.subject ) ? '' : email.subject.abbreviate( maxLengthSubject ) );
+        String plainText,htmlBody0='';
+        Integer htmlBodyLength;
+        string orgWideEmailAddressId='';
+        List<OrgWideEmailAddress> EmailAddressId=[SELECT Id FROM OrgWideEmailAddress order by createdDate asc LIMIT 1];
+        if(EmailAddressId.size()>0){
+            orgWideEmailAddressId=EmailAddressId[0].Id;
+        }
+        EmailMessage message = new EmailMessage(
+            
+            textBody = plainTextBody,
+            htmlBody = htmlBodyFull,
+            subject = subject,
+            incoming = false,
+            FromAddress = orgWideEmailAddressId,
+            MessageDate = DateTime.now(),
+            RelatedToId = relatedToId,
+            status = '3'    
+        );
+                system.debug('id3'+relatedToId);
+
+        if(email.toAddresses != null && email.toAddresses.size() > 0){
+            message.toAddress = String.join( email.toAddresses, ';' );
+        }
+                if(email.orgwideemailaddressid != null){
+            message.toAddress = String.join( email.toAddresses, ';' );
+        }
+        
+        if(email.ccAddresses != null && email.ccAddresses.size() > 0){
+            message.ccAddress = String.join( email.ccAddresses, ';' );
+        }        
+        return message;
+    }
+          
+    public static Decimal getBusinessDays(Integer Days)
+    {
+        Decimal businessDays;
+        Date startDate = Date.today();
+        Date endDate = startDate.addDays(Days);
+        List<Date> weekends = new List<Date>();
+        
+        for (Date d = startDate; d <= endDate; d = d.addDays(1)) {
+            Datetime dt = (DateTime)d;
+            String dayOfWeek = dt.format('EEEE'); 
+           // system.debug('day'+dayOfWeek);
+            if (dayOfWeek == 'Saturday' || dayOfWeek == 'Sunday') {
+                weekends.add(d);
+            }
+        }
+        businessDays=Days+weekends.size();
+        return businessDays;
+    }
+    public static void reduceChunks(List<SObject> sObjList){
+        Map<String, List<SObject>> sObjType_sObjectsMap = new Map<String, List<SObject>>();
+        for (SObject sObj : sObjList) {
+            Boolean preserveId = String.isNotBlank((String)sObj.get('Id')) ? true : false;
+            SObject sObjClone = sObj.clone(preserveId, true, false, false);
+            String sObjType = String.valueOf(sObjClone.getSObjectType());
+            List<SObject> tempChunkRecList = new List<SObject>();
+            if (sObjType_sObjectsMap.containsKey(sObjType)) {
+                tempChunkRecList = sObjType_sObjectsMap.get(sObjType);
+            }
+            tempChunkRecList.add(sObjClone);
+            sObjType_sObjectsMap.put(sObjType, tempChunkRecList);
+        }
+        sObjList.clear();
+        for (String key : sObjType_sObjectsMap.keySet()) {
+            sObjList.addAll(sObjType_sObjectsMap.get(key));
+        }
+    }
+
+}
