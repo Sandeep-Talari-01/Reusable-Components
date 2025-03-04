@@ -2,7 +2,7 @@
  * @description       : 
  * @author            : Sandeep Talari
  * @group             : 
- * @last modified on  : 03-02-2025
+ * @last modified on  : 03-05-2025
  * @last modified by  : Sandeep Talari
 **/
 
@@ -386,44 +386,6 @@ public with sharing class CommonUtility {
         return resultMap;
     }
 
-    public static Date calculateDate(Date Basedt, decimal yy, string operator,decimal count,string option, string operator1, decimal count1, string option1)
-    {
-        //system.debug('From Calculate Date---->');      
-        String AddNoofYears = String.valueOf(yy);
-        String AddNoofCount = operator+String.valueOf(count);
-        String AddNoofCount1 = operator1+String.valueOf(count1);
-        Date calculatedDate;
-        calculatedDate = Basedt.addYears(Integer.valueof(AddNoofYears.trim()));
-        //system.debug('calculatedDate added Years :'+ calculatedDate );
-        if(option == 'Month(s)')
-        {
-            calculatedDate = calculatedDate.addMonths(Integer.valueof(AddNoofCount.trim()));
-            //system.debug('calculatedDate added Months:'+ calculatedDate );
-            calculatedDate = calculatedDate.addDays(Integer.valueof(AddNoofCount1.trim()));
-            //system.debug('calculatedDate added Days:'+ calculatedDate );
-        }
-        if(option == 'Day(s)')
-        {
-            calculatedDate = calculatedDate.addDays(Integer.valueof(AddNoofCount.trim()));
-            //system.debug('calculatedDate added Days:'+ calculatedDate );
-            calculatedDate = calculatedDate.addMonths(Integer.valueof(AddNoofCount1.trim()));
-            //system.debug('calculatedDate added Months:'+ calculatedDate );
-        }
-        return calculatedDate;
-    }
-    
-    
-    public static void sleep(Integer milliSeconds)
-    {
-        Long timeDiff = 0;
-        DateTime firstTime = System.now();
-        do
-        {
-            timeDiff = System.now().getTime() - firstTime.getTime();
-        }
-        while(timeDiff <= milliSeconds);
-    }
-
     public static EmailMessage buildEmailMessage(Messaging.SingleEmailMessage email,ID relatedToId){ 
         Integer maxLengthPlainTextBody = EmailMessage.TextBody.getDescribe().getLength();
         Integer maxLengthHtmlBody = EmailMessage.HtmlBody.getDescribe().getLength();
@@ -464,24 +426,6 @@ public with sharing class CommonUtility {
         return message;
     }
           
-    public static Decimal getBusinessDays(Integer Days)
-    {
-        Decimal businessDays;
-        Date startDate = Date.today();
-        Date endDate = startDate.addDays(Days);
-        List<Date> weekends = new List<Date>();
-        
-        for (Date d = startDate; d <= endDate; d = d.addDays(1)) {
-            Datetime dt = (DateTime)d;
-            String dayOfWeek = dt.format('EEEE'); 
-           // system.debug('day'+dayOfWeek);
-            if (dayOfWeek == 'Saturday' || dayOfWeek == 'Sunday') {
-                weekends.add(d);
-            }
-        }
-        businessDays=Days+weekends.size();
-        return businessDays;
-    }
     public static void reduceChunks(List<SObject> sObjList){
         Map<String, List<SObject>> sObjType_sObjectsMap = new Map<String, List<SObject>>();
         for (SObject sObj : sObjList) {
