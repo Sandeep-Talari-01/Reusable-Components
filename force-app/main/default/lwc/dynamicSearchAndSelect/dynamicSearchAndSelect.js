@@ -2,7 +2,6 @@ import { LightningElement, api, track } from 'lwc';
 import getSearchRecords from '@salesforce/apex/DynamicSearchRecords.DynamicSearchRecords';
 import getMetadataAndData from '@salesforce/apex/DynamicSearchRecords.getMetadataAndData';
 import ReturnSearchRecords from '@salesforce/apex/DynamicSearchRecords.ReturnSearchRecords';
-import 'c/debugUtil';
 
 export default class DynamicSearchAndSelect extends LightningElement {
     @api minSearchTxtLen = 0;
