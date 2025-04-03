@@ -5,7 +5,7 @@
  * @last modified on  : 04-03-2025
  * @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
 **/
-public without sharing EmailMessage
+public class EmailMessage
 {
 public static EmailMessage buildEmailMessage(Messaging.SingleEmailMessage email,ID relatedToId){ 
         Integer maxLengthPlainTextBody = EmailMessage.TextBody.getDescribe().getLength();
