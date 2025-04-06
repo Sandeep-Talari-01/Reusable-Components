@@ -131,6 +131,9 @@ for (AsyncCallout.PostOfficeData office : result) {
 
 ---
 
+**Note: Please add the URL in Remote Site Settings.**
+
+
 ## 👨‍💻 Author
 
 **Sandeep Talari**  
