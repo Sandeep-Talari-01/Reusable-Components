@@ -22,7 +22,7 @@ This repository hosts a carefully curated set of production-ready LWC components
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/sandeeptalari/sf-lwc-components.git
+git clone (https://github.com/Sandeep-Talari-01/Reusable-Components.git)
 ```
 
 2. Deploy to your Salesforce org:
