@@ -128,4 +128,4 @@ for (AsyncCallout.PostOfficeData office : result) {
 ## 👨‍💻 Author
 
 **Sandeep Talari**  
-*Product Engineer @ Maxval | Salesforce Developer | Rising Star 🏆*
+*Product Engineer @ Maxval | Salesforce Developer *
