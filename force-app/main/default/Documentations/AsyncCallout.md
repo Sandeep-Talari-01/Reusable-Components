@@ -122,15 +122,6 @@ for (AsyncCallout.PostOfficeData office : result) {
 
 ---
 
-## 🔍 To-Do / Enhancements
-
-- [ ] Add support for searching by pincode
-- [ ] Convert to Named Credential-based callout
-- [ ] Create invocable method for Flow support
-- [ ] Add unit test class with mock response
-
----
-
 **Note: Please add the URL in Remote Site Settings.**
 
 
